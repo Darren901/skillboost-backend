@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const courseValidation = require("../validation").courseValidation;
 const Course = require("../models").course;
+const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
