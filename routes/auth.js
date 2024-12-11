@@ -7,24 +7,28 @@ const editValidation = require("../validation").editValidation;
 const User = require("../models").user;
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 
 router.use((req, res, next) => {
   console.log("正在接受一個auth請求");
   next();
 });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "skillboost", // 你的專案資料夾名稱
+    allowed_formats: ["jpg", "png", "webp", "jpeg"], // 允許的格式
+    transformation: [{ width: 500, height: 500, crop: "limit" }], // 可選的圖片處理
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage: storage });
 
 router.post("/register", async (req, res) => {
   let { error } = registerValidation(req.body);
@@ -88,25 +92,24 @@ router.put(
     const { username, description } = req.body;
     const currentUser = await User.findById(req.user._id);
 
-    if (
-      req.file &&
-      currentUser.image &&
-      currentUser.image.startsWith("/uploads/")
-    ) {
-      const oldImagePath = path.join(__dirname, "..", currentUser.image);
-      if (fs.existsSync(oldImagePath)) {
-        try {
-          fs.unlinkSync(oldImagePath); // 刪除舊圖片
-          console.log("舊圖片已刪除:", oldImagePath);
-        } catch (err) {
-          console.log("無法刪除舊圖片:", err);
-        }
+    // 如果有新圖片上傳且存在舊的 Cloudinary 圖片
+    if (req.file && currentUser.image) {
+      try {
+        // 從 URL 中獲取公開 ID
+        const publicId = currentUser.image
+          .split("/")
+          .slice(-2)
+          .join("/")
+          .split(".")[0]; // 獲取不帶副檔名的公開 ID
+
+        await cloudinary.uploader.destroy(publicId);
+        console.log("舊圖片已從 Cloudinary 刪除");
+      } catch (err) {
+        console.error("刪除 Cloudinary 圖片時發生錯誤:", err);
       }
     }
 
-    const imageUrl = req.file
-      ? `/uploads/${req.file.filename}`
-      : currentUser.image;
+    const imageUrl = req.file ? req.file.path : currentUser.image;
     try {
       const updatedUser = await User.findByIdAndUpdate(
         req.user._id,

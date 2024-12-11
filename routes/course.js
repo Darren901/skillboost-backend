@@ -1,25 +1,30 @@
 const router = require("express").Router();
 const courseValidation = require("../validation").courseValidation;
 const Course = require("../models").course;
-const multer = require("multer");
-const fs = require("fs").promises;
-const path = require("path");
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 router.use((req, res, next) => {
   console.log("courseRoute正在接收一個request...");
   next();
 });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "skillboost", // 你的專案資料夾名稱
+    allowed_formats: ["jpg", "png", "webp", "jpeg"], // 允許的格式
+    transformation: [{ width: 500, height: 500, crop: "limit" }], // 可選的圖片處理
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage: storage });
 
 // find all course
 router.get("/", async (req, res) => {
@@ -165,7 +170,7 @@ router.post("/", upload.single("image"), async (req, res) => {
   }
 
   let { title, description, price, content, videoUrl } = req.body;
-  const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+  const imageUrl = req.file ? req.file.path : null;
   try {
     let newCourse = new Course({
       title,
@@ -222,26 +227,24 @@ router.patch("/:_id", upload.single("image"), async (req, res) => {
     if (foundCourse.instructor.equals(req.user._id)) {
       let { title, description, price, content, videoUrl } = req.body;
 
-      // 檢查並刪除舊圖片
-      if (
-        req.file &&
-        foundCourse.image &&
-        foundCourse.image.startsWith("/uploads/")
-      ) {
-        const oldImagePath = path.join(__dirname, "..", foundCourse.image);
+      // 如果有新圖片上傳且存在舊的 Cloudinary 圖片
+      if (req.file && foundCourse.image) {
         try {
-          await fs.access(oldImagePath);
-          await fs.unlink(oldImagePath);
-          console.log("舊圖片已刪除:", oldImagePath);
+          // 從 URL 中獲取公開 ID
+          const publicId = foundCourse.image
+            .split("/")
+            .slice(-2)
+            .join("/")
+            .split(".")[0]; // 獲取不帶副檔名的公開 ID
+
+          await cloudinary.uploader.destroy(publicId);
+          console.log("舊圖片已從 Cloudinary 刪除");
         } catch (err) {
-          console.error("無法刪除舊圖片:", err);
-          return res.status(500).send("無法刪除舊圖片，請稍後再試。");
+          console.error("刪除 Cloudinary 圖片時發生錯誤:", err);
         }
       }
 
-      const imageUrl = req.file
-        ? `/uploads/${req.file.filename}`
-        : foundCourse.image;
+      const imageUrl = req.file ? req.file.path : foundCourse.image;
 
       let updateCourse = await Course.findOneAndUpdate(
         { _id },
@@ -260,6 +263,7 @@ router.patch("/:_id", upload.single("image"), async (req, res) => {
         }
       );
       return res.send({
+        message: "課程更新成功",
         updateCourse,
       });
     } else {

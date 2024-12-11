@@ -10,14 +10,12 @@ const ecpay = require("./routes/index").ecpay;
 const passport = require("passport");
 require("./config/passport")(passport);
 const cors = require("cors");
-const path = require("path");
 
 mongoose
   .connect(process.env.MONGODB_CONNECTION)
   .then(() => console.log("成功連線至mongoDB..."))
   .catch((e) => console.log(e));
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
@@ -37,6 +35,7 @@ app.use(
   orderRoutes
 );
 
-app.listen(8080, () => {
-  console.log("後端伺服器正在聆聽port8080...");
+const port = process.env.PORT || 8080;
+app.listen(port, () => {
+  console.log(`後端伺服器正在聆聽port ${port}...`);
 });
