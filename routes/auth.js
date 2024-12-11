@@ -7,6 +7,8 @@ const editValidation = require("../validation").editValidation;
 const User = require("../models").user;
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 router.use((req, res, next) => {
   console.log("正在接受一個auth請求");
