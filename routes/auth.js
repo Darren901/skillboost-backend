@@ -91,9 +91,6 @@ router.put(
       return res.status(400).send(error.details[0].message);
     }
 
-    console.log("請求的 body:", req.body);
-    console.log("請求的檔案:", req.file);
-
     const { username, description } = req.body;
     const currentUser = await User.findById(req.user._id);
 

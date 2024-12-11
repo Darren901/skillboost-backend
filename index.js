@@ -22,6 +22,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000", // 開發環境
+      "https://skill-boost-web.netlify.app",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
