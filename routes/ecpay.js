@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const ecpay_payment = require("ecpay_aio_nodejs");
-const clientApiUrl = `http://localhost:3000/CurrentUserCourse`;
+const clientApiUrl = `https://skill-boost-web.netlify.app/CurrentUserCourse`;
 require("dotenv").config();
 
 const { MERCHANTID, HASHKEY, HASHIV, HOST } = process.env;
